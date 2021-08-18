@@ -29,30 +29,40 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(cookieParser('12345-67890-09876-54321'));
 
-const auth = (req,res,next) => {
-  console.log(req.headers);
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    const err = new Error ("You are not authenticated");
-    res.setHeader('WWW-Authenticate','Basic');
-    err.status = 401;
-    return next(err);
-  }
-  const auth = new Buffer(authHeader.split(' ')[1],'base64').toString().split(":");
-  //Take the second half from "Basic {BASE64_ENCODED_AUTH}"
-  //Then Split the string with ':' as that separates the username and password
-  //Buffers objects are used to represent a fixed length sequence of bytes -> subclass of the Uint8Array class
-  if (auth[0] !== "admin" || auth[1] !== "password"){
-    const err = new Error ("You are not authenticated");
-    res.setHeader('WWW-Authenticate','Basic');
-    err.status = 401;
-    return next(err);
-  }
-  next();
+const throwAuthError = (message) => {
+  const err = new Error (message);
+  err.status = 401;
+  return err
 }
 
+const auth = (req,res,next) => {
+  console.log(req.signedCookies);
+  if (!req.signedCookies.user){
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      res.setHeader('WWW-Authenticate','Basic');
+      return next(throwAuthError("You are not authenticated"));
+    }
+    const auth = new Buffer.from(authHeader.split(' ')[1],'base64').toString().split(":");
+    //Take the second half from "Basic {BASE64_ENCODED_AUTH}"
+    //Then Split the string with ':' as that separates the username and password
+    //Buffers objects are used to represent a fixed length sequence of bytes -> subclass of the Uint8Array class
+    //Buffer.from() handles some security concerns
+    if (auth[0] !== "admin" || auth[1] !== "password"){
+      res.setHeader('WWW-Authenticate','Basic');
+      return next(throwAuthError("You are not authenticated"));
+    }
+    res.cookie('user','admin',{signed:true})
+    next();
+  }
+  if (req.signedCookies.user === 'admin') next();
+  else {
+    res.setHeader('WWW-Authenticate','Basic');
+    return next(throwAuthError("You are not authenticated"));
+  }
+}
 app.use(auth)
 //We want to validate our client auth before we serve up the static resources
 app.use(express.static(path.join(__dirname, 'public')));
