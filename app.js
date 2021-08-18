@@ -12,6 +12,8 @@ const leaderRouter = require("./routes/leaderRouter")
 
 const mongoose = require('mongoose')
 const Dishes = require("./models/dishes")
+const Promotions = require("./models/promotions")
+const Leaders = require("./models/leaders")
 
 const url = 'mongodb://localhost:27017/conFusion'
 const connect = mongoose.connect(url);
@@ -28,6 +30,31 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+const auth = (req,res,next) => {
+  console.log(req.headers);
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    const err = new Error ("You are not authenticated");
+    res.setHeader('WWW-Authenticate','Basic');
+    err.status = 401;
+    return next(err);
+  }
+  const auth = new Buffer(authHeader.split(' ')[1],'base64').toString().split(":");
+  //Take the second half from "Basic {BASE64_ENCODED_AUTH}"
+  //Then Split the string with ':' as that separates the username and password
+  //Buffers objects are used to represent a fixed length sequence of bytes -> subclass of the Uint8Array class
+  if (auth[0] !== "admin" || auth[1] !== "password"){
+    const err = new Error ("You are not authenticated");
+    res.setHeader('WWW-Authenticate','Basic');
+    err.status = 401;
+    return next(err);
+  }
+  next();
+}
+
+app.use(auth)
+//We want to validate our client auth before we serve up the static resources
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
