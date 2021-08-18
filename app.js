@@ -3,9 +3,11 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var session = require('express-session');
+var FileStore = require('session-file-store')(session);
 
 var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+var usersRouter = require('./routes/userRouter');
 const dishRouter = require('./routes/dishRouter')
 const promoRouter = require("./routes/promoRouter")
 const leaderRouter = require("./routes/leaderRouter")
@@ -14,6 +16,7 @@ const mongoose = require('mongoose')
 const Dishes = require("./models/dishes")
 const Promotions = require("./models/promotions")
 const Leaders = require("./models/leaders")
+const Users = require("./models/users")
 
 const url = 'mongodb://localhost:27017/conFusion'
 const connect = mongoose.connect(url);
@@ -29,46 +32,40 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser('12345-67890-09876-54321'));
+//app.use(cookieParser('12345-67890-09876-54321')); // secret key provided
+app.use(session({
+  name: 'session-id',
+  secret:'12345-67890-09876-54321',
+  saveUninitialized:false,
+  resave:false,
+  store:new FileStore()
+}));
 
-const throwAuthError = (message) => {
-  const err = new Error (message);
-  err.status = 401;
-  return err
-}
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
 
 const auth = (req,res,next) => {
-  console.log(req.signedCookies);
-  if (!req.signedCookies.user){
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      res.setHeader('WWW-Authenticate','Basic');
-      return next(throwAuthError("You are not authenticated"));
+  console.log(req.session)
+  if (!req.session.user){
+      const err = new Error("You are not authenticated")
+      err.status = 403;
+      return next(err);
+  } else {
+    if (req.session.user === 'authenticated'){
+      next();
+
+    } else {
+      const err = new Error("You are not authenticated")
+      err.status = 403;
+      return next(err);
     }
-    const auth = new Buffer.from(authHeader.split(' ')[1],'base64').toString().split(":");
-    //Take the second half from "Basic {BASE64_ENCODED_AUTH}"
-    //Then Split the string with ':' as that separates the username and password
-    //Buffers objects are used to represent a fixed length sequence of bytes -> subclass of the Uint8Array class
-    //Buffer.from() handles some security concerns
-    if (auth[0] !== "admin" || auth[1] !== "password"){
-      res.setHeader('WWW-Authenticate','Basic');
-      return next(throwAuthError("You are not authenticated"));
-    }
-    res.cookie('user','admin',{signed:true})
-    next();
-  }
-  if (req.signedCookies.user === 'admin') next();
-  else {
-    res.setHeader('WWW-Authenticate','Basic');
-    return next(throwAuthError("You are not authenticated"));
   }
 }
+
 app.use(auth)
 //We want to validate our client auth before we serve up the static resources
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
 app.use("/dishes", dishRouter)
 app.use("/promotions",promoRouter)
 app.use("/leaders", leaderRouter)
