@@ -7,6 +7,7 @@ const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const passport = require('passport');
 const authentication = require('./authenticate')
+const config = require('./config')
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/userRouter');
@@ -20,7 +21,7 @@ const Promotions = require("./models/promotions")
 const Leaders = require("./models/leaders")
 const User = require("./models/users")
 
-const url = 'mongodb://localhost:27017/conFusion'
+const url = config.mongoUrl; 
 const connect = mongoose.connect(url);
 connect.then((db)=>{
   console.log("Connected correctly to the server")
@@ -35,50 +36,19 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 //app.use(cookieParser('12345-67890-09876-54321')); // secret key provided
-app.use(session({
-  name: 'session-id',
-  secret:'12345-67890-09876-54321',
-  saveUninitialized:false,
-  resave:false,
-  store:new FileStore()
-}));
+// app.use(session({
+//   name: 'session-id',
+//   secret:'12345-67890-09876-54321',
+//   saveUninitialized:false,
+//   resave:false,
+//   store:new FileStore()
+// }));
 app.use(passport.initialize());
 app.use(passport.session())
 
+//We can remove the auth procedure from the overall application by specifying which routes require authentication inside of the router file 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-
-const passportAuth = (req,res,next) => {
-  if (!req.user){
-    var err = new Error("You are not authenticated")
-    err.status = 403;
-    return next(err);
-  }
-  else {
-    next();
-  }
-}
-
-// const basicAuth = (req,res,next) => {
-//   console.log(req.session)
-//   if (!req.session.user){
-//       const err = new Error("You are not authenticated")
-//       err.status = 403;
-//       return next(err);
-//   } else {
-//     if (req.session.user === 'authenticated'){
-//       next();
-//
-//     } else {
-//       const err = new Error("You are not authenticated")
-//       err.status = 403;
-//       return next(err);
-//     }
-//   }
-// }
-
-app.use(passportAuth)
-//We want to validate our client auth BEFORE we serve up the static resources
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use("/dishes", dishRouter)
@@ -100,5 +70,4 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
-
 module.exports = app;
