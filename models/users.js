@@ -16,6 +16,7 @@ var userSchema = new Schema({
     type:Boolean,
     default:false
   },
+  facebookID:String,
 },{
     timestamps: true
 });
