@@ -52,15 +52,18 @@ exports.verifyAdmin = (req,res,next) => {
     }
 }
 
-exports.facebookPassport = passport.use(new FacebookTokenStrategy(
-    {
+exports.facebookPassport = passport.use(
+    new FacebookTokenStrategy({ 
         clientID: config.facebook.clientId,
         clientSecret: config.facebook.clientSecret
     },(accessToken, refreshToken, profile, done) => {
+        //check if the user has already logged in with Facebook before 
         User.findOne({facebookId: profile.id}, (err,user) => {
             if (err) return done(err,false);
+            //if user already exists 
             if (!err && user !== null) return done(null,user);
             else{
+                //create new User
                 user = new User({username: profile.displayName });
                 user.facebookId = profile.id;
                 user.firstname = profile.name.givenName;
