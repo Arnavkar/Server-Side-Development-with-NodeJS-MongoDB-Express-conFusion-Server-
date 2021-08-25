@@ -28,6 +28,13 @@ connect.then((db)=>{
 }, (err) => {console.log(err); });
 let app = express();
 
+//redirect all requests from http to https
+app.all('*',(req,res,next) => {
+  //If incoming request has the secure flag, we know it is hitting the secure port already 
+  if (!req.secure) res.redirect(307,'https://' + req.hostname + ':' + app.get('secPort') + req.url);
+  else return next();
+});
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
