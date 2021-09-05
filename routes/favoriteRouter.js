@@ -30,6 +30,7 @@ favoriteRouter.route('/')
                 for (var i = 0;i < req.body.length; i++){
                     favorite.dishes.unshift(req.body[i]._id);
                 }
+                favorites = [...new Set(favorites)]
                 favorite.save()
                 .then((favorite)=>{
                     res.statusCode = 200;
@@ -41,6 +42,7 @@ favoriteRouter.route('/')
             for (var i = 0;i < req.body.length; i++){
                 favorite.dishes.unshift(req.body[i]._id);
             }
+            favorites = [...new Set(favorites)]
             favorite.save()
             .then((favorite)=>{
                 res.statusCode = 200;
